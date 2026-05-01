@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AHP Decision Tool - Spring Boot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .step { display: none; }
+        .step.active { display: block; }
+        .step-indicator { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 30px;
+        }
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: relative;
+        }
+        .step-circle.active {
+            background: #0d6efd;
+            color: white;
+        }
+        .step-circle.completed {
+            background: #198754;
+            color: white;
+        }
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: #dee2e6;
+            margin: 0 10px;
+            align-self: center;
+        }
+        .matrix-input {
+            width: 80px;
+            text-align: center;
+        }
+        .score-cell {
+            width: 100px;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: all 0.3s;
+        }
+        .consistency-badge {
+            font-size: 0.9rem;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .consistency-good { background: #d1e7dd; color: #0f5132; }
+        .consistency-bad { background: #f8d7da; color: #842029; }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-chart-line"></i> AHP Decision Tool
+                </h1>
+                <p class="mb-0 mt-2">Analytic Hierarchy Process - Aide à la décision multicritère</p>
+            </div>
+            
+            <div class="card-body">
+                <!-- Step Indicator -->
+                <div class="step-indicator">
+                    <div class="step-circle active" data-step="1">1</div>
+                    <div class="step-line"></div>
+                    <div class="step-circle" data-step="2">2</div>
+                    <div class="step-line"></div>
+                    <div class="step-circle" data-step="3">3</div>
+                    <div class="step-line"></div>
+                    <div class="step-circle" data-step="4">4</div>
+                    <div class="step-line"></div>
+                    <div class="step-circle" data-step="5">5</div>
+                </div>
+                
+                <!-- Step 1: Criteria -->
+                <div id="step1" class="step active">
+                    <h3><i class="fas fa-list"></i> Étape 1: Définir les critères</h3>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" id="criterionInput" class="form-control" placeholder="Nom du critère (ex: Prix, Qualité)">
+                            <button class="btn btn-primary" onclick="addCriterion()">
+                                <i class="fas fa-plus"></i> Ajouter
+                            </button>
+                        </div>
+                    </div>
+                    <div id="criteriaList" class="d-flex flex-wrap gap-2 mb-3"></div>
+                    <button class="btn btn-success float-end" onclick="nextStep(1)">
+                        Suivant <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                
+                <!-- Step 2: Alternatives -->
+                <div id="step2" class="step">
+                    <h3><i class="fas fa-option"></i> Étape 2: Définir les alternatives</h3>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" id="alternativeInput" class="form-control" placeholder="Nom de l'alternative">
+                            <button class="btn btn-primary" onclick="addAlternative()">
+                                <i class="fas fa-plus"></i> Ajouter
+                            </button>
+                        </div>
+                    </div>
+                    <div id="alternativesList" class="d-flex flex-wrap gap-2 mb-3"></div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="prevStep(2)">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </button>
+                        <button class="btn btn-success float-end" onclick="nextStep(2)">
+                            Suivant <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Scores -->
+                <div id="step3" class="step">
+                    <h3><i class="fas fa-star"></i> Étape 3: Évaluer les alternatives</h3>
+                    <div id="scoresContainer"></div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="prevStep(3)">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </button>
+                        <button class="btn btn-success float-end" onclick="nextStep(3)">
+                            Suivant <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Pairwise Comparison -->
+                <div id="step4" class="step">
+                    <h3><i class="fas fa-table"></i> Étape 4: Comparaison par paires des critères</h3>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Échelle de Saaty: 
+                        <span th:each="entry : ${saatyScale}">
+                            <strong th:text="${entry.key}"></strong> = <span th:text="${entry.value}"></span> |
+                        </span>
+                    </div>
+                    <div id="pairwiseContainer"></div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="prevStep(4)">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </button>
+                        <button class="btn btn-success float-end" onclick="calculateAHP()">
+                            Calculer <i class="fas fa-calculator"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Results -->
+                <div id="step5" class="step">
+                    <h3><i class="fas fa-chart-bar"></i> Étape 5: Résultats</h3>
+                    <div id="resultsContainer"></div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="prevStep(5)">
+                            <i class="fas fa-arrow-left"></i> Retour
+                        </button>
+                        <button class="btn btn-danger float-end" onclick="resetApp()">
+                            <i class="fas fa-redo"></i> Recommencer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/ahp.js"></script>
+</body>
+</html>
